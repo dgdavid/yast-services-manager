@@ -33,7 +33,7 @@ module Yast
 
     # @return [Settings]
     DEFAULT_SERVICE_SETTINGS = {
-      :enabled        => false,
+      :enabled        => :manual,
       :can_be_enabled => true,
       :modified       => false,
       :active         => nil,
@@ -179,7 +179,7 @@ module Yast
         # Rest of settings
         service_names.zip(ss).each do |name, s|
           sh = services[name] # service hash
-          sh[:enabled] = s && s.enabled?
+          sh[:enabled] = s && s.start_mode
           sh[:active] = s && s.active?
           if !sh[:description] || sh[:description].empty?
             sh[:description] = s ? s.description : ""
@@ -248,9 +248,9 @@ module Yast
     #
     # @param String service name
     # @param Boolean new service status
-    def enable(service)
+    def enable(service, mode = :boot)
       exists?(service) do
-        services[service][:enabled]  = true
+        services[service][:enabled]  = mode
         services[service][:modified] = true
         self.modified = true
       end
@@ -262,7 +262,7 @@ module Yast
     # @param Boolean new service status
     def disable(service)
       exists?(service) do
-        services[service][:enabled]  = false
+        services[service][:enabled]  = :manual
         services[service][:modified] = true
         self.modified = true
       end
@@ -274,7 +274,7 @@ module Yast
     # @return Boolean enabled
     def enabled(service)
       exists?(service) do
-        services[service][:enabled]
+        services[service][:enabled] != :manual
       end
     end
 
@@ -440,12 +440,18 @@ module Yast
       enabled(service) ? disable(service) : enable(service)
     end
 
+    def set_start_mode(service, mode)
+      services[service][:enabled] = mode
+    end
+
     # Enable or disable the service
     #
     # @param [String] service name
     # @return [Boolean]
-    def toggle!(service)
-      enabled(service) ? Yast::Service.Enable(service) : Yast::Service.Disable(service)
+    def set_start_mode!(name)
+      service = Yast::SystemdService.find(name)
+      return false unless service
+      service.start_mode = services[name][:enabled]
     end
 
     # Returns full information about the service as returned from systemctl command
@@ -519,7 +525,7 @@ module Yast
       services_toggled = []
       services.each do |service_name, service_attributes|
         next unless service_attributes[:modified]
-        if toggle! service_name
+        if set_start_mode!(service_name)
           services_toggled << service_name
         else
           change  = enabled(service_name) ? 'enable' : 'disable'

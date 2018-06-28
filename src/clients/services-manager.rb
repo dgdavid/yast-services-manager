@@ -63,12 +63,15 @@ class ServicesManagerClient < Yast::Client
       input = UI.UserInput
       Builtins.y2milestone('User returned %1', input)
 
+      byebug
       case input
         when :abort, :cancel
           break if Popup::ReallyAbort(ServicesManager.modified?)
         # Default for double-click in the table
-        when Id::TOGGLE_ENABLED, Id::SERVICES_TABLE
+        when Id::SERVICES_TABLE
           toggle_service
+        when :boot, :demand, :manual
+          set_start_mode(input)
         when Id::TOGGLE_RUNNING
           switch_service
         when Id::DEFAULT_TARGET
@@ -149,7 +152,14 @@ class ServicesManagerClient < Yast::Client
       HBox(
         PushButton(Id(Id::TOGGLE_RUNNING), _('&Start/Stop')),
         HSpacing(1),
-        PushButton(Id(Id::TOGGLE_ENABLED), _('&Enable/Disable')),
+        MenuButton(
+          Id(Id::TOGGLE_ENABLED), _('Automatic Start'),
+          [
+            Item(Id(:boot), _('On Boot')),
+            Item(Id(:demand), _('On Demand')),
+            Item(Id(:manual), _('Manually'))
+          ]
+        ),
         HStretch(),
         PushButton(Id(Id::SHOW_DETAILS), _('Show &Details'))
       )
@@ -169,7 +179,7 @@ class ServicesManagerClient < Yast::Client
     services = ServicesManagerService.all.collect do |service, attributes|
       Item(Id(service),
         shortened_service_name(service),
-        attributes[:enabled] ? _('Enabled') : _('Disabled'),
+        start_mode(attributes[:enabled]),
         attributes[:active] ? _('Active') : _('Inactive'),
         attributes[:description]
       )
@@ -177,6 +187,17 @@ class ServicesManagerClient < Yast::Client
     UI.CloseDialog
     UI.ChangeWidget(Id(Id::SERVICES_TABLE), :Items, services)
     UI.SetFocus(Id(Id::SERVICES_TABLE))
+  end
+
+  # start_mode
+  START_MODE = {
+    boot:     'On Boot',
+    demand:   'On Demand',
+    manually: 'Manually'
+  }
+
+  def start_mode(mode)
+    START_MODE[mode]
   end
 
   def redraw_service(service)
@@ -254,6 +275,19 @@ class ServicesManagerClient < Yast::Client
     Builtins.y2milestone('Toggling service status: %1', service)
     if ServicesManagerService.can_be_enabled(service)
       ServicesManagerService.toggle(service)
+    else
+      Popup.Error(_("This service cannot be enabled/disabled because it has no \"install\" section in the description file"))
+    end
+    redraw_service(service)
+    UI.SetFocus(Id(Id::SERVICES_TABLE))
+    true
+  end
+
+  def set_start_mode(mode)
+    service = UI.QueryWidget(Id(Id::SERVICES_TABLE), :CurrentItem)
+    Builtins.y2milestone('Toggling service status: %1', service)
+    if ServicesManagerService.can_be_enabled(service)
+      ServicesManagerService.set_start_mode(service, mode)
     else
       Popup.Error(_("This service cannot be enabled/disabled because it has no \"install\" section in the description file"))
     end
