@@ -23,17 +23,19 @@ module Yast
     # Why does this hash exist if we have Yast::SystemdServiceClass::Service?
     class Settings < Hash
       # @!method [](k)
-      #   @option k :enabled  [Boolean] service has been enabled
+      #   @option k :start_mode  [Boolean] service has been enabled
       #   @option k :can_be_enabled [Boolean] service can be enabled/disabled by the user
       #   @option k :modified [Boolean] service has been changed (got enabled/disabled)
       #   @option k :active   [Boolean] The high-level unit activation state, i.e. generalization of SUB
       #   @option k :loaded   [Boolean] Reflects whether the unit definition was properly loaded
       #   @option k :description [String] English description of the service
+      #   @option k :start_modes [Array<Symbol>] Supported start modes
     end
 
     # @return [Settings]
     DEFAULT_SERVICE_SETTINGS = {
-      :enabled        => :manual,
+      :start_mode        => :manual,
+      :start_modes    => [:boot, :manual],
       :can_be_enabled => true,
       :modified       => false,
       :active         => nil,
@@ -179,7 +181,8 @@ module Yast
         # Rest of settings
         service_names.zip(ss).each do |name, s|
           sh = services[name] # service hash
-          sh[:enabled] = s && s.start_mode
+          sh[:start_mode] = s && s.start_mode
+          sh[:start_modes] = s && s.start_modes
           sh[:active] = s && s.active?
           if !sh[:description] || sh[:description].empty?
             sh[:description] = s ? s.description : ""
@@ -244,37 +247,13 @@ module Yast
 
     alias_method :active?, :active
 
-    # Enables a given service (in memory only, use save() later)
-    #
-    # @param String service name
-    # @param Boolean new service status
-    def enable(service, mode = :boot)
-      exists?(service) do
-        services[service][:enabled]  = mode
-        services[service][:modified] = true
-        self.modified = true
-      end
-    end
-
-    # Disables a given service (in memory only, use save() later)
-    #
-    # @param String service name
-    # @param Boolean new service status
-    def disable(service)
-      exists?(service) do
-        services[service][:enabled]  = :manual
-        services[service][:modified] = true
-        self.modified = true
-      end
-    end
-
     # Returns whether the given service has been enabled
     #
     # @param String service
     # @return Boolean enabled
     def enabled(service)
       exists?(service) do
-        services[service][:enabled] != :manual
+        services[service][:start_mode] != :manual
       end
     end
 
@@ -440,8 +419,18 @@ module Yast
       enabled(service) ? disable(service) : enable(service)
     end
 
+    # Sets start_mode for a service (in memory only, use save())
+    #
+    # @param service [String] service name
+    # @param mode    [Symbol] Start mode
+    #
+    # @see Yast::SystemdService#start_modes
     def set_start_mode(service, mode)
-      services[service][:enabled] = mode
+      exists?(service) do
+        services[service][:start_mode] = mode
+        services[service][:modified] = true
+        self.modified = true
+      end
     end
 
     # Enable or disable the service
@@ -451,7 +440,19 @@ module Yast
     def set_start_mode!(name)
       service = Yast::SystemdService.find(name)
       return false unless service
-      service.start_mode = services[name][:enabled]
+      service.start_mode = services[name][:start_mode]
+    end
+
+    def start_mode(service)
+      exists?(service) do
+        services[service][:start_mode]
+      end
+    end
+
+    def start_modes(service)
+      exists?(service) do
+        services[service][:start_modes]
+      end
     end
 
     # Returns full information about the service as returned from systemctl command
@@ -544,7 +545,7 @@ module Yast
     publish({:function => :all,            :type => "map <string, map> ()"    })
     publish({:function => :disable,        :type => "string (boolean)"        })
     publish({:function => :enable,         :type => "string (boolean)"        })
-    publish({:function => :enabled,        :type => "boolean ()"              })
+    publish({:function => :start_mode,     :type => "boolean ()"              })
     publish({:function => :can_be_enabled, :type => "boolean ()"              })
     publish({:function => :errors,         :type => "list ()"                 })
     publish({:function => :export,         :type => "list <string> ()"        })

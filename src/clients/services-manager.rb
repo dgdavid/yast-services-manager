@@ -13,11 +13,12 @@ class ServicesManagerClient < Yast::Client
   include Yast::Logger
 
   module Id
-    SERVICES_TABLE = :services_table
-    TOGGLE_RUNNING = :start_stop
-    TOGGLE_ENABLED = :enable_disable
-    DEFAULT_TARGET = :default_target
-    SHOW_DETAILS   = :show_details
+    SERVICES_TABLE  = :services_table
+    TOGGLE_RUNNING  = :start_stop
+    TOGGLE_ENABLED  = :enable_disable
+    SERVICE_BUTTONS = :service_buttons
+    DEFAULT_TARGET  = :default_target
+    SHOW_DETAILS    = :show_details
   end
 
   def main
@@ -63,13 +64,12 @@ class ServicesManagerClient < Yast::Client
       input = UI.UserInput
       Builtins.y2milestone('User returned %1', input)
 
-      byebug
       case input
         when :abort, :cancel
           break if Popup::ReallyAbort(ServicesManager.modified?)
         # Default for double-click in the table
         when Id::SERVICES_TABLE
-          toggle_service
+          handle_table
         when :boot, :demand, :manual
           set_start_mode(input)
         when Id::TOGGLE_RUNNING
@@ -140,26 +140,17 @@ class ServicesManagerClient < Yast::Client
       VSpacing(1),
       Table(
         Id(Id::SERVICES_TABLE),
-        Opt(:notify),
+        Opt(:immediate),
         Header(
           _('Service'),
-          _('Enabled'),
+          _('Start'),
           _('Active'),
           _('Description')
         ),
         []
       ),
       HBox(
-        PushButton(Id(Id::TOGGLE_RUNNING), _('&Start/Stop')),
-        HSpacing(1),
-        MenuButton(
-          Id(Id::TOGGLE_ENABLED), _('Automatic Start'),
-          [
-            Item(Id(:boot), _('On Boot')),
-            Item(Id(:demand), _('On Demand')),
-            Item(Id(:manual), _('Manually'))
-          ]
-        ),
+        ReplacePoint(Id(Id::SERVICE_BUTTONS), Empty()),
         HStretch(),
         PushButton(Id(Id::SHOW_DETAILS), _('Show &Details'))
       )
@@ -171,6 +162,7 @@ class ServicesManagerClient < Yast::Client
     Wizard.SetAbortButton(:abort, Label.CancelButton)
 
     redraw_services
+    refresh_buttons(current_service)
   end
 
   # Redraws the services dialog
@@ -189,11 +181,36 @@ class ServicesManagerClient < Yast::Client
     UI.SetFocus(Id(Id::SERVICES_TABLE))
   end
 
+  def service_buttons(service)
+    running_label = ServicesManagerService.active(service) ? _('&Stop') : _('&Start')
+    start_mode_label = start_mode(ServicesManagerService.start_mode(service))
+    HBox(
+      PushButton(Id(Id::TOGGLE_RUNNING), running_label),
+      HSpacing(1),
+      MenuButton(Id(Id::TOGGLE_ENABLED), start_mode_label, start_options_for(service))
+    )
+  end
+
+  def refresh_buttons(service)
+    UI.ReplaceWidget(Id(Id::SERVICE_BUTTONS), service_buttons(service))
+  end
+
+  def start_options_for(service)
+    modes = [
+      Item(Id(:boot), _('On Boot')),
+      Item(Id(:manual), _('Manually'))
+    ]
+    if ServicesManagerService.start_modes(service).include?(:demand)
+      modes.insert(1, Item(Id(:demand), _('On Demand')))
+    end
+    modes
+  end
+
   # start_mode
   START_MODE = {
-    boot:     'On Boot',
-    demand:   'On Demand',
-    manually: 'Manually'
+    boot:   'On Boot',
+    demand: 'On Demand',
+    manual: 'Manually'
   }
 
   def start_mode(mode)
@@ -201,13 +218,13 @@ class ServicesManagerClient < Yast::Client
   end
 
   def redraw_service(service)
-    enabled = ServicesManagerService.enabled(service)
     UI.ChangeWidget(
       Id(Id::SERVICES_TABLE),
       Cell(service, 1),
-      (enabled ? _('Enabled') : _('Disabled'))
+      start_mode(ServicesManagerService.start_mode(service))
     )
 
+    enabled = ServicesManagerService.enabled(service)
     running = ServicesManagerService.active(service)
 
     # The current state matches the futural state
@@ -225,6 +242,8 @@ class ServicesManagerClient < Yast::Client
         (running ? _('Active (will start)') : _('Inactive (will stop)'))
       )
     end
+
+    refresh_buttons(service)
   end
 
 
@@ -268,6 +287,17 @@ class ServicesManagerClient < Yast::Client
     success
   end
 
+  def handle_table
+    service = UI.QueryWidget(Id(Id::SERVICES_TABLE), :CurrentItem)
+    if @prev_service == service
+      toggle_service
+    else
+      @prev_service = service
+      refresh_buttons(service)
+      Builtins.y2milestone('Changed service')
+    end
+  end
+
   # Toggles (enable/disable) whether the currently selected service should
   # be enabled or disabled while writing the configuration
   def toggle_service
@@ -309,6 +339,10 @@ class ServicesManagerClient < Yast::Client
   def max_service_name
     # use 60 for other elements in table we want to display, see bsc#993826
     display_width - 60
+  end
+
+  def current_service
+    UI.QueryWidget(Id(Id::SERVICES_TABLE), :CurrentItem)
   end
 end
 
