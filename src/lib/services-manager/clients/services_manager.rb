@@ -20,6 +20,7 @@
 # find current contact information at www.suse.com.
 
 require "yast"
+require "yast2/systemd/service"
 require "services-manager/widgets/services_table"
 
 Yast.import "ServicesManager"
@@ -32,7 +33,6 @@ Yast.import "Report"
 Yast.import "Message"
 Yast.import "Mode"
 Yast.import "CommandLine"
-Yast.import "SystemdService"
 Yast.import "PackageSystem"
 
 module Y2ServicesManager
@@ -409,7 +409,7 @@ module Y2ServicesManager
 
       # Currently selected service
       #
-      # @return [Yast2::Systemdervice, nil] nil if the service is not found
+      # @return [Yast2::Systemd::Service, nil] nil if the service is not found
       def selected_service
         services_table.selected_service
       end

@@ -30,8 +30,8 @@ module Yast
 
     context "reading targets" do
       it "reads default target name and other targets" do
-        expect(SystemdTarget).to receive(:all).and_return(TestTarget::ALL)
-        expect(SystemdTarget).to receive(:get_default).and_return(TestTarget::GRAPHICAL)
+        expect(Yast2::Systemd::Target).to receive(:all).and_return(TestTarget::ALL)
+        expect(Yast2::Systemd::Target).to receive(:get_default).and_return(TestTarget::GRAPHICAL)
 
         target = ServicesManagerTargetClass.new
 
@@ -45,8 +45,8 @@ module Yast
 
       it "skips reading targets if `Stage` is `initial`" do
         allow(Yast::Stage).to receive(:stage).and_return("initial")
-        expect(SystemdTarget).not_to receive(:all)
-        expect(SystemdTarget).not_to receive(:get_default)
+        expect(Yast2::Systemd::Target).not_to receive(:all)
+        expect(Yast2::Systemd::Target).not_to receive(:get_default)
         target = ServicesManagerTargetClass.new
         expect(target.targets).to be_empty
         expect(target.default_target).to be_empty
@@ -55,9 +55,9 @@ module Yast
 
     context "saving default target" do
       it "saves the modified default target name" do
-        expect(SystemdTarget).to receive(:all).and_return(TestTarget::ALL)
-        expect(SystemdTarget).to receive(:get_default).and_return(TestTarget::GRAPHICAL)
-        expect(SystemdTarget).to receive(:set_default).and_return(true)
+        expect(Yast2::Systemd::Target).to receive(:all).and_return(TestTarget::ALL)
+        expect(Yast2::Systemd::Target).to receive(:get_default).and_return(TestTarget::GRAPHICAL)
+        expect(Yast2::Systemd::Target).to receive(:set_default).and_return(true)
         target = ServicesManagerTargetClass.new
         expect(target.default_target).to eq('graphical')
         target.default_target = 'multi-user'
@@ -66,8 +66,8 @@ module Yast
       end
 
       it "skips setting the default target if not modified" do
-        allow(SystemdTarget).to receive(:all).and_return(TestTarget::ALL)
-        allow(SystemdTarget).to receive(:get_default).and_return(TestTarget::GRAPHICAL)
+        allow(Yast2::Systemd::Target).to receive(:all).and_return(TestTarget::ALL)
+        allow(Yast2::Systemd::Target).to receive(:get_default).and_return(TestTarget::GRAPHICAL)
         target = ServicesManagerTargetClass.new
         expect(target.modified).to eq(false)
         expect(target.save).to eq(true)
@@ -76,13 +76,13 @@ module Yast
 
     context "re-setting targets" do
       it "reloads the object properties" do
-        expect(SystemdTarget).to receive(:all).and_return(TestTarget::ALL)
-        expect(SystemdTarget).to receive(:get_default).and_return(TestTarget::GRAPHICAL)
+        expect(Yast2::Systemd::Target).to receive(:all).and_return(TestTarget::ALL)
+        expect(Yast2::Systemd::Target).to receive(:get_default).and_return(TestTarget::GRAPHICAL)
         target = ServicesManagerTargetClass.new
         target.default_target = 'multi-user'
         expect(target.modified).to eq(true)
-        expect(SystemdTarget).to receive(:all).and_return(TestTarget::ALL)
-        expect(SystemdTarget).to receive(:get_default).and_return(TestTarget::GRAPHICAL)
+        expect(Yast2::Systemd::Target).to receive(:all).and_return(TestTarget::ALL)
+        expect(Yast2::Systemd::Target).to receive(:get_default).and_return(TestTarget::GRAPHICAL)
         target.reset
         expect(target.modified).to eq(false)
         expect(target.default_target).to eq('graphical')

@@ -32,7 +32,7 @@ module Yast
 
       keys = all_services.sort.map(&:first)
       values = all_services.sort.map(&:last)
-      allow(SystemdService)
+      allow(Yast2::Systemd::Service)
         .to receive(:find_many).with(keys)
               .and_return(values)
     end

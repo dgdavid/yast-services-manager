@@ -1,10 +1,10 @@
 require "yast"
 require "yast2/system_service"
+require "yast2/systemd/service"
 
 module Yast
   import "Service"
   import "ServicesProposal"
-  import "SystemdService"
   import "Stage"
 
   class ServicesManagerServiceClass < Module
@@ -28,7 +28,7 @@ module Yast
     # Used by ServicesManagerServiceClass to keep data about an individual service.
     # (Not a real class; documents the structure of a Hash)
     #
-    # Why does this hash exist if we have Yast::SystemdServiceClass::Service?
+    # Why does this hash exist if we have Yast2::Systemd::Service?
     class Settings < Hash
       # @!method [](k)
       #   @option k :start_mode  [Symbol] service's start mode
@@ -471,7 +471,7 @@ module Yast
     #
     # @param service [String] service name
     # @param mode    [Symbol] Start mode
-    # @see Yast::SystemdServiceClass::Service#start_modes
+    # @see Yast2::Systemd::Service#start_modes
     def set_start_mode(service, mode)
       exists?(service) do
         services[service][:start_mode] = mode

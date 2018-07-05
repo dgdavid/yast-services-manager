@@ -53,15 +53,15 @@ describe Y2ServicesManager::Clients::ServicesManager do
       allow(Yast::UI).to receive(:UserInput).and_return(*user_input)
       allow(Yast::Popup).to receive(:ReallyAbort).and_return(true)
 
-      allow(Yast::SystemdTarget).to receive(:get_default).and_return(default_target)
-      allow(Yast::SystemdTarget).to receive(:all).and_return(tagets)
+      allow(Yast2::Systemd::Target).to receive(:get_default).and_return(default_target)
+      allow(Yast2::Systemd::Target).to receive(:all).and_return(tagets)
 
       allow(Yast::ServicesManagerServiceClass::ServiceLoader).to receive(:new).and_return(loader)
 
       allow(loader).to receive(:list_unit_files).and_return(units_files_output)
       allow(loader).to receive(:list_units).and_return(units_output)
 
-      allow(Yast::SystemdService).to receive(:find_many)
+      allow(Yast2::Systemd::Service).to receive(:find_many)
         .with(services.map(&:name).sort).and_return(services)
     end
 
@@ -145,7 +145,7 @@ describe Y2ServicesManager::Clients::ServicesManager do
       before do
         allow(Yast::UI).to receive(:QueryWidget).with(table_id, :CurrentItem)
           .and_return(sshd_service.name)
-        allow(Yast::SystemdService).to receive(:find).with(sshd_service.name)
+        allow(Yast2::Systemd::Service).to receive(:find).with(sshd_service.name)
           .and_return(sshd_service)
 
         allow(sshd_service).to receive(:id) { "sshd.service" }
